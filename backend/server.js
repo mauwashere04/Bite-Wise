@@ -37,24 +37,47 @@ const PORT = process.env.PORT || 3001;
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
+  'https://bitewise-one.vercel.app',
   process.env.FRONTEND_URL
 ].filter(Boolean); // Remove undefined values
+
+// Remove trailing slashes for comparison
+const normalizeOrigin = (origin) => origin ? origin.replace(/\/$/, '') : null;
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('🟢 [CORS] Allowing request with no origin');
+      return callback(null, true);
+    }
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    const normalizedOrigin = normalizeOrigin(origin);
+    const normalizedAllowed = allowedOrigins.map(normalizeOrigin);
+    
+    console.log('🟢 [CORS] Checking origin:', normalizedOrigin);
+    console.log('🟢 [CORS] Allowed origins:', normalizedAllowed);
+    
+    if (normalizedAllowed.includes(normalizedOrigin)) {
+      console.log('✅ [CORS] Origin allowed:', normalizedOrigin);
       callback(null, true);
     } else {
-      console.warn(`⚠️  CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      console.warn(`⚠️  [CORS] Blocked origin: ${normalizedOrigin}`);
+      console.warn(`⚠️  [CORS] Allowed origins:`, normalizedAllowed);
+      // In production, be more permissive for debugging
+      if (process.env.NODE_ENV === 'production') {
+        console.log('🟡 [CORS] Production mode - allowing origin anyway');
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));

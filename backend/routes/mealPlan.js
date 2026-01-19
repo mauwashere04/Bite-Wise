@@ -69,10 +69,18 @@ router.post('/', async (req, res) => {
     });
     
     // Return detailed error in production too so we can debug
+    // Check if it's a Gemini API key error
+    const errorMessage = error.message || '';
+    const isLeakedKeyError = errorMessage.includes('leaked') || errorMessage.includes('403');
+    
     res.status(500).json({ 
       error: 'Failed to generate meal plan',
-      message: error.message || 'Unknown error occurred',
+      message: errorMessage || 'Unknown error occurred',
       errorType: error.constructor.name,
+      ...(isLeakedKeyError && {
+        apiKeyIssue: true,
+        solution: 'Your Gemini API key has been flagged as leaked. Please generate a new API key at https://ai.google.dev/ and update it in Vercel environment variables.'
+      }),
       ...(error.response && { apiResponse: error.response }),
       ...(error.status && { statusCode: error.status }),
       details: process.env.NODE_ENV === 'development' ? error.stack : 'Check server logs'
