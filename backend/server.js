@@ -15,9 +15,17 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '.env') });
 
 // Verify API key is loaded
+console.log('🔵 [Server] Checking environment variables...');
+console.log('🔵 [Server] NODE_ENV:', process.env.NODE_ENV);
+console.log('🔵 [Server] PORT:', process.env.PORT);
+console.log('🔵 [Server] FRONTEND_URL:', process.env.FRONTEND_URL);
+console.log('🔵 [Server] GEMINI_API_KEY present:', !!process.env.GEMINI_API_KEY);
+console.log('🔵 [Server] GEMINI_API_KEY length:', process.env.GEMINI_API_KEY?.length || 0);
+
 if (!process.env.GEMINI_API_KEY) {
   console.error('❌ ERROR: GEMINI_API_KEY not found in environment variables');
   console.error('   Make sure backend/.env file exists with GEMINI_API_KEY=your_key');
+  console.error('   In Vercel: Set GEMINI_API_KEY in project environment variables');
 } else {
   console.log('✅ GEMINI_API_KEY loaded successfully');
 }
@@ -67,7 +75,38 @@ app.get('/', (req, res) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'BiteWise API is running' });
+  console.log('🟢 [Health Check] Request received');
+  res.json({ 
+    status: 'ok', 
+    message: 'BiteWise API is running',
+    env: {
+      NODE_ENV: process.env.NODE_ENV,
+      hasApiKey: !!process.env.GEMINI_API_KEY,
+      frontendUrl: process.env.FRONTEND_URL
+    }
+  });
+});
+
+// Test endpoint to verify serverless function is working
+app.get('/test', (req, res) => {
+  console.log('🟢 [Test] Request received');
+  console.log('🟢 [Test] Environment:', {
+    NODE_ENV: process.env.NODE_ENV,
+    VERCEL: process.env.VERCEL,
+    GEMINI_API_KEY_PRESENT: !!process.env.GEMINI_API_KEY,
+    FRONTEND_URL: process.env.FRONTEND_URL
+  });
+  res.json({ 
+    success: true,
+    message: 'Serverless function is working!',
+    timestamp: new Date().toISOString(),
+    env: {
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL: process.env.VERCEL,
+      hasApiKey: !!process.env.GEMINI_API_KEY,
+      frontendUrl: process.env.FRONTEND_URL
+    }
+  });
 });
 
 // API Routes
