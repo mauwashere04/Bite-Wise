@@ -75,7 +75,13 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 BiteWise Backend API running on port ${PORT}`);
-  console.log(`📡 Health check: http://localhost:${PORT}/health`);
-});
+// Only start server if not in Vercel serverless environment
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`🚀 BiteWise Backend API running on port ${PORT}`);
+    console.log(`📡 Health check: http://localhost:${PORT}/health`);
+  });
+}
+
+// Export for Vercel serverless functions
+export default app;
