@@ -7,15 +7,22 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load environment variables
-dotenv.config({ path: join(__dirname, '..', '.env') });
+// Load environment variables (for local development)
+// In Vercel, environment variables are automatically available via process.env
+try {
+  dotenv.config({ path: join(__dirname, '..', '.env') });
+} catch (e) {
+  // Ignore if .env file doesn't exist (normal in Vercel)
+}
 
+// Get API key from environment (works in both local and Vercel)
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
   console.error('⚠️  GEMINI_API_KEY is not set in environment variables');
-  console.error('   Check that backend/.env file exists and contains GEMINI_API_KEY');
+  console.error('   In Vercel: Set GEMINI_API_KEY in project environment variables');
+  console.error('   Locally: Check that backend/.env file exists and contains GEMINI_API_KEY');
 } else {
-  console.log('✅ Gemini API key loaded in service');
+  console.log('✅ Gemini API key loaded successfully');
 }
 
 const ai = new GoogleGenAI({ apiKey: apiKey || '' });
@@ -71,21 +78,35 @@ export const generateMealPlan = async (input, profile, image, isMultiCourse = fa
     imageData = image.split(',')[1];
   }
 
-  const contents = imageData 
-    ? { parts: [{ text: input || "Surprise me with a dish that matches exactly what you see." }, { inlineData: { mimeType: 'image/jpeg', data: imageData } }] }
-    : input || "Suggest a meal plan.";
+  // Prepare content parts
+  let parts = [];
+  if (imageData) {
+    parts = [
+      { text: input || "Surprise me with a dish that matches exactly what you see." },
+      { inlineData: { mimeType: 'image/jpeg', data: imageData } }
+    ];
+  } else {
+    parts = [{ text: input || "Suggest a meal plan." }];
+  }
 
   try {
-    const response = await ai.models.generateContent({
+    // Get the model instance with system instruction
+    const model = ai.getGenerativeModel({ 
       model: modelName,
-      contents,
-      config: {
-        systemInstruction,
+      systemInstruction: systemInstruction,
+    });
+
+    // Generate content
+    const result = await model.generateContent({
+      contents: [{ parts }],
+      generationConfig: {
         responseMimeType: "application/json",
       }
     });
 
-    const resultText = response.text;
+    const response = await result.response;
+    const resultText = response.text();
+    
     if (!resultText) {
       throw new Error("AI failed to return valid meal plan data.");
     }
@@ -93,6 +114,11 @@ export const generateMealPlan = async (input, profile, image, isMultiCourse = fa
     return JSON.parse(resultText.trim());
   } catch (error) {
     console.error('Error generating meal plan:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     throw error;
   }
 };
