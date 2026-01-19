@@ -4,6 +4,9 @@ import { generateMealPlan } from '../services/geminiService.js';
 const router = express.Router();
 
 router.post('/', async (req, res) => {
+  // Log immediately - this should ALWAYS show if function is called
+  console.log('🟢🟢🟢 [mealPlan Route] ====== FUNCTION CALLED ======');
+  console.log('🟢 [mealPlan Route] Timestamp:', new Date().toISOString());
   console.log('🟢 [mealPlan Route] POST /api/meal-plan received');
   console.log('🟢 [mealPlan Route] Request body keys:', Object.keys(req.body));
   console.log('🟢 [mealPlan Route] Request details:', {
@@ -13,6 +16,10 @@ router.post('/', async (req, res) => {
     hasImage: !!req.body.image,
     imageLength: req.body.image?.length || 0,
     isMultiCourse: req.body.isMultiCourse
+  });
+  console.log('🟢 [mealPlan Route] Environment check:', {
+    NODE_ENV: process.env.NODE_ENV,
+    hasApiKey: !!process.env.GEMINI_API_KEY
   });
   
   try {
@@ -55,13 +62,20 @@ router.post('/', async (req, res) => {
       message: error.message,
       stack: error.stack,
       name: error.name,
-      cause: error.cause
+      cause: error.cause,
+      ...(error.response && { response: error.response }),
+      ...(error.status && { status: error.status }),
+      ...(error.statusText && { statusText: error.statusText })
     });
     
+    // Return detailed error in production too so we can debug
     res.status(500).json({ 
       error: 'Failed to generate meal plan',
       message: error.message || 'Unknown error occurred',
-      ...(process.env.NODE_ENV === 'development' && { details: error.stack })
+      errorType: error.constructor.name,
+      ...(error.response && { apiResponse: error.response }),
+      ...(error.status && { statusCode: error.status }),
+      details: process.env.NODE_ENV === 'development' ? error.stack : 'Check server logs'
     });
   }
 });

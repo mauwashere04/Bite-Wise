@@ -114,32 +114,75 @@ export const generateMealPlan = async (input, profile, image, isMultiCourse = fa
       model: modelName,
       partsCount: parts.length,
       hasImage: !!imageData,
-      hasSystemInstruction: !!systemInstruction
+      hasSystemInstruction: !!systemInstruction,
+      apiKeyPresent: !!apiKey,
+      apiKeyLength: apiKey?.length || 0
     });
     
-    // Use the same API pattern as other functions (ai.models.generateContent)
-    console.log('🔵 [generateMealPlan] Calling ai.models.generateContent...');
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: imageData 
-        ? { parts: parts }
-        : { parts: parts },
-      config: {
+    // Check if ai.models exists
+    console.log('🔵 [generateMealPlan] Checking API structure...');
+    console.log('🔵 [generateMealPlan] ai object keys:', Object.keys(ai || {}));
+    console.log('🔵 [generateMealPlan] ai.models exists:', !!ai.models);
+    if (ai.models) {
+      console.log('🔵 [generateMealPlan] ai.models keys:', Object.keys(ai.models || {}));
+    }
+    
+    // Try using getGenerativeModel first (standard SDK pattern)
+    console.log('🔵 [generateMealPlan] Attempting getGenerativeModel approach...');
+    let response;
+    
+    try {
+      const model = ai.getGenerativeModel({ 
+        model: modelName,
         systemInstruction: systemInstruction,
-        responseMimeType: "application/json",
-      }
-    });
+      });
+      console.log('✅ [generateMealPlan] Model instance created');
+      
+      const result = await model.generateContent({
+        contents: [{ parts }],
+        generationConfig: {
+          responseMimeType: "application/json",
+        }
+      });
+      console.log('✅ [generateMealPlan] generateContent completed');
+      response = await result.response;
+    } catch (getModelError) {
+      console.error('❌ [generateMealPlan] getGenerativeModel failed:', getModelError.message);
+      console.log('🔵 [generateMealPlan] Trying ai.models.generateContent...');
+      
+      // Fallback to ai.models.generateContent
+      response = await ai.models.generateContent({
+        model: modelName,
+        contents: imageData 
+          ? { parts: parts }
+          : { parts: parts },
+        config: {
+          systemInstruction: systemInstruction,
+          responseMimeType: "application/json",
+        }
+      });
+    }
     console.log('✅ [generateMealPlan] generateContent call completed');
     console.log('🔵 [generateMealPlan] Response type:', typeof response);
     console.log('🔵 [generateMealPlan] Response keys:', Object.keys(response || {}));
 
     console.log('🔵 [generateMealPlan] Extracting text from response...');
-    // Check response structure - it might be response.text or response.candidates[0].content.parts[0].text
+    console.log('🔵 [generateMealPlan] Response structure:', {
+      hasText: !!response.text,
+      hasCandidates: !!response.candidates,
+      responseType: typeof response,
+      responseKeys: Object.keys(response || {})
+    });
+    
+    // Check response structure - it might be response.text() or response.text or response.candidates[0].content.parts[0].text
     let resultText = null;
     
-    if (response.text) {
+    if (typeof response.text === 'function') {
+      resultText = response.text();
+      console.log('✅ [generateMealPlan] Found response.text() method');
+    } else if (response.text) {
       resultText = response.text;
-      console.log('✅ [generateMealPlan] Found response.text');
+      console.log('✅ [generateMealPlan] Found response.text property');
     } else if (response.candidates && response.candidates[0] && response.candidates[0].content) {
       const content = response.candidates[0].content;
       if (content.parts && content.parts[0] && content.parts[0].text) {
@@ -147,8 +190,9 @@ export const generateMealPlan = async (input, profile, image, isMultiCourse = fa
         console.log('✅ [generateMealPlan] Found response.candidates[0].content.parts[0].text');
       }
     } else {
-      console.error('❌ [generateMealPlan] Unexpected response structure:', JSON.stringify(response, null, 2));
-      throw new Error("Unexpected response structure from Gemini API");
+      console.error('❌ [generateMealPlan] Unexpected response structure');
+      console.error('❌ [generateMealPlan] Full response:', JSON.stringify(response, null, 2));
+      throw new Error(`Unexpected response structure from Gemini API. Response type: ${typeof response}, Keys: ${Object.keys(response || {}).join(', ')}`);
     }
     
     console.log('✅ [generateMealPlan] Text extracted (length:', resultText?.length || 0, ')');
