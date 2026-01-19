@@ -71,7 +71,9 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
+console.log('🟡 [Server] Setting up API routes...');
 app.use('/api/meal-plan', mealPlanRoutes);
+console.log('✅ [Server] /api/meal-plan route registered');
 app.use('/api/image-generation', imageGenerationRoutes);
 app.use('/api/tts', ttsRoutes);
 

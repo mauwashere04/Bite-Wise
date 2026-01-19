@@ -109,40 +109,53 @@ export const generateMealPlan = async (input, profile, image, isMultiCourse = fa
   }
 
   try {
-    console.log('🔵 [generateMealPlan] Getting model instance...');
-    // Get the model instance with system instruction
-    const model = ai.getGenerativeModel({ 
-      model: modelName,
-      systemInstruction: systemInstruction,
-    });
-    console.log('✅ [generateMealPlan] Model instance created:', modelName);
-
-    console.log('🔵 [generateMealPlan] Calling generateContent...');
+    console.log('🔵 [generateMealPlan] Preparing API call...');
     console.log('🔵 [generateMealPlan] Request params:', {
+      model: modelName,
       partsCount: parts.length,
       hasImage: !!imageData,
-      generationConfig: { responseMimeType: "application/json" }
+      hasSystemInstruction: !!systemInstruction
     });
     
-    // Generate content
-    const result = await model.generateContent({
-      contents: [{ parts }],
-      generationConfig: {
+    // Use the same API pattern as other functions (ai.models.generateContent)
+    console.log('🔵 [generateMealPlan] Calling ai.models.generateContent...');
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: imageData 
+        ? { parts: parts }
+        : { parts: parts },
+      config: {
+        systemInstruction: systemInstruction,
         responseMimeType: "application/json",
       }
     });
     console.log('✅ [generateMealPlan] generateContent call completed');
+    console.log('🔵 [generateMealPlan] Response type:', typeof response);
+    console.log('🔵 [generateMealPlan] Response keys:', Object.keys(response || {}));
 
-    console.log('🔵 [generateMealPlan] Getting response...');
-    const response = await result.response;
-    console.log('✅ [generateMealPlan] Response received');
-    
     console.log('🔵 [generateMealPlan] Extracting text from response...');
-    const resultText = response.text();
+    // Check response structure - it might be response.text or response.candidates[0].content.parts[0].text
+    let resultText = null;
+    
+    if (response.text) {
+      resultText = response.text;
+      console.log('✅ [generateMealPlan] Found response.text');
+    } else if (response.candidates && response.candidates[0] && response.candidates[0].content) {
+      const content = response.candidates[0].content;
+      if (content.parts && content.parts[0] && content.parts[0].text) {
+        resultText = content.parts[0].text;
+        console.log('✅ [generateMealPlan] Found response.candidates[0].content.parts[0].text');
+      }
+    } else {
+      console.error('❌ [generateMealPlan] Unexpected response structure:', JSON.stringify(response, null, 2));
+      throw new Error("Unexpected response structure from Gemini API");
+    }
+    
     console.log('✅ [generateMealPlan] Text extracted (length:', resultText?.length || 0, ')');
     
     if (!resultText) {
       console.error('❌ [generateMealPlan] No text in response!');
+      console.error('❌ [generateMealPlan] Full response:', JSON.stringify(response, null, 2));
       throw new Error("AI failed to return valid meal plan data.");
     }
 
