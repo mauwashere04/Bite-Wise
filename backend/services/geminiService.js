@@ -28,14 +28,28 @@ if (!apiKey) {
 const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
 export const generateMealPlan = async (input, profile, image, isMultiCourse = false) => {
+  console.log('🔵 [generateMealPlan] Function called');
+  console.log('🔵 [generateMealPlan] Input:', { 
+    hasInput: !!input, 
+    inputLength: input?.length || 0,
+    hasImage: !!image,
+    imageLength: image?.length || 0,
+    isMultiCourse,
+    hasProfile: !!profile,
+    profileKeys: profile ? Object.keys(profile) : []
+  });
+  
   // Using gemini-2.5-flash (stable, free tier available)
   // According to official docs: https://ai.google.dev/gemini-api/docs/models
   const modelName = 'gemini-2.5-flash';
   
   // Validate API key
+  console.log('🔵 [generateMealPlan] Checking API key...');
   if (!apiKey) {
+    console.error('❌ [generateMealPlan] API key is missing!');
     throw new Error('GEMINI_API_KEY is not configured. Please set it in backend/.env file.');
   }
+  console.log('✅ [generateMealPlan] API key present (length:', apiKey.length, ')');
   
   const systemInstruction = `
     You are an elite Michelin-star chef and expert visual analyst.
@@ -72,30 +86,44 @@ export const generateMealPlan = async (input, profile, image, isMultiCourse = fa
   `;
 
   // Handle image - if it's a data URL, extract base64, otherwise use as-is
+  console.log('🔵 [generateMealPlan] Processing image...');
   let imageData = image;
   if (image && image.startsWith('data:image')) {
     // Extract base64 from data URL
     imageData = image.split(',')[1];
+    console.log('🔵 [generateMealPlan] Extracted base64 image data (length:', imageData?.length || 0, ')');
   }
 
   // Prepare content parts
+  console.log('🔵 [generateMealPlan] Preparing content parts...');
   let parts = [];
   if (imageData) {
     parts = [
       { text: input || "Surprise me with a dish that matches exactly what you see." },
       { inlineData: { mimeType: 'image/jpeg', data: imageData } }
     ];
+    console.log('🔵 [generateMealPlan] Using image + text parts');
   } else {
     parts = [{ text: input || "Suggest a meal plan." }];
+    console.log('🔵 [generateMealPlan] Using text-only parts');
   }
 
   try {
+    console.log('🔵 [generateMealPlan] Getting model instance...');
     // Get the model instance with system instruction
     const model = ai.getGenerativeModel({ 
       model: modelName,
       systemInstruction: systemInstruction,
     });
+    console.log('✅ [generateMealPlan] Model instance created:', modelName);
 
+    console.log('🔵 [generateMealPlan] Calling generateContent...');
+    console.log('🔵 [generateMealPlan] Request params:', {
+      partsCount: parts.length,
+      hasImage: !!imageData,
+      generationConfig: { responseMimeType: "application/json" }
+    });
+    
     // Generate content
     const result = await model.generateContent({
       contents: [{ parts }],
@@ -103,21 +131,40 @@ export const generateMealPlan = async (input, profile, image, isMultiCourse = fa
         responseMimeType: "application/json",
       }
     });
+    console.log('✅ [generateMealPlan] generateContent call completed');
 
+    console.log('🔵 [generateMealPlan] Getting response...');
     const response = await result.response;
+    console.log('✅ [generateMealPlan] Response received');
+    
+    console.log('🔵 [generateMealPlan] Extracting text from response...');
     const resultText = response.text();
+    console.log('✅ [generateMealPlan] Text extracted (length:', resultText?.length || 0, ')');
     
     if (!resultText) {
+      console.error('❌ [generateMealPlan] No text in response!');
       throw new Error("AI failed to return valid meal plan data.");
     }
 
-    return JSON.parse(resultText.trim());
+    console.log('🔵 [generateMealPlan] Parsing JSON...');
+    const parsed = JSON.parse(resultText.trim());
+    console.log('✅ [generateMealPlan] JSON parsed successfully');
+    console.log('✅ [generateMealPlan] Returning meal plan with title:', parsed.title);
+    
+    return parsed;
   } catch (error) {
-    console.error('Error generating meal plan:', error);
-    console.error('Error details:', {
+    console.error('❌ [generateMealPlan] Error caught in try-catch block');
+    console.error('❌ [generateMealPlan] Error type:', error.constructor.name);
+    console.error('❌ [generateMealPlan] Error message:', error.message);
+    console.error('❌ [generateMealPlan] Error stack:', error.stack);
+    console.error('❌ [generateMealPlan] Full error object:', {
       message: error.message,
       stack: error.stack,
-      name: error.name
+      name: error.name,
+      cause: error.cause,
+      ...(error.response && { response: error.response }),
+      ...(error.status && { status: error.status }),
+      ...(error.statusText && { statusText: error.statusText })
     });
     throw error;
   }
