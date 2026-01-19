@@ -51,6 +51,20 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'BiteWise API is running',
+    endpoints: {
+      health: '/health',
+      mealPlan: '/api/meal-plan',
+      imageGeneration: '/api/image-generation',
+      tts: '/api/tts'
+    }
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'BiteWise API is running' });
