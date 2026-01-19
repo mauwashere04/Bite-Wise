@@ -2,7 +2,12 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { MealResult, UserProfile, Course, RecipeStep } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+if (!apiKey) {
+  console.error('GEMINI_API_KEY is not set in environment variables');
+}
+
+const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
 // Internal state to manage active audio for stopping/cleanup
 let activeAudioSource: AudioBufferSourceNode | null = null;

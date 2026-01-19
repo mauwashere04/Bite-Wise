@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { AppState, AppView, MealResult, UserProfile } from './types';
-import { generateMealPlan, generateMealImage, readSteps, stopAudio } from './services/geminiService';
+import { generateMealPlan, readSteps, stopAudio } from './services/apiService';
 import Charts from './components/Charts';
 import { 
   Utensils, Camera, BookOpen, Loader2, Play, History, X, 
@@ -82,8 +82,8 @@ const App: React.FC = () => {
 
       const res = await generateMealPlan(refinedInput, profile, base64 as any, isMultiCourse);
       setResult(res);
-      const img = await generateMealImage(res.title, res.courses[0].summary);
-      setMealImage(img);
+      // Image generation removed - free tier doesn't support it
+      setMealImage(null);
       setHistory(prev => [res, ...prev].slice(0, 10));
       setState(AppState.RESULT);
       
@@ -155,18 +155,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#030712] text-slate-100 flex flex-col items-center">
-      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 glass px-6 py-4 rounded-full flex gap-12 z-50 shadow-2xl">
-        <button onClick={() => setView(AppView.RECIPE_GEN)} className={`p-4 rounded-2xl transition-all flex items-center gap-3 ${view === AppView.RECIPE_GEN ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30' : 'text-slate-500 hover:text-slate-300'}`}>
-          <Utensils className="w-6 h-6" />
-          {view === AppView.RECIPE_GEN && <span className="text-xs font-black uppercase tracking-widest">Kitchen</span>}
-        </button>
-        <button onClick={() => setView(AppView.PROFILE)} className={`p-4 rounded-2xl transition-all flex items-center gap-3 ${view === AppView.PROFILE ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30' : 'text-slate-500 hover:text-slate-300'}`}>
-          <User className="w-6 h-6" />
-          {view === AppView.PROFILE && <span className="text-xs font-black uppercase tracking-widest">Profile</span>}
-        </button>
-      </nav>
-
-      <header className="w-full max-w-6xl px-10 py-10 flex justify-between items-center border-b border-white/5">
+      <header className="relative w-full max-w-6xl px-10 py-10 flex justify-between items-center border-b border-white/5">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-amber-600 rounded-xl flex items-center justify-center"><ChefHat className="text-white w-6 h-6" /></div>
           <div>
@@ -174,15 +163,25 @@ const App: React.FC = () => {
             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Master Kitchen Engine</p>
           </div>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
           <div className="text-right hidden sm:block">
              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Skill Mode</p>
              <p className="text-xs font-black text-amber-500 uppercase">{profile.skillLevel}</p>
           </div>
         </div>
+        <nav className="absolute left-1/2 -translate-x-1/2 glass px-6 py-4 rounded-full flex gap-12 shadow-2xl z-50">
+          <button onClick={() => setView(AppView.RECIPE_GEN)} className={`p-4 rounded-2xl transition-all flex items-center gap-3 ${view === AppView.RECIPE_GEN ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30' : 'text-slate-500 hover:text-slate-300'}`}>
+            <Utensils className="w-6 h-6" />
+            {view === AppView.RECIPE_GEN && <span className="text-xs font-black uppercase tracking-widest">Kitchen</span>}
+          </button>
+          <button onClick={() => setView(AppView.PROFILE)} className={`p-4 rounded-2xl transition-all flex items-center gap-3 ${view === AppView.PROFILE ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30' : 'text-slate-500 hover:text-slate-300'}`}>
+            <User className="w-6 h-6" />
+            {view === AppView.PROFILE && <span className="text-xs font-black uppercase tracking-widest">Profile</span>}
+          </button>
+        </nav>
       </header>
 
-      <main className="w-full max-w-6xl px-4 md:px-10 py-10 pb-40 flex-grow">
+      <main className="w-full max-w-6xl px-4 md:px-10 py-10 flex-grow">
         {view === AppView.RECIPE_GEN && (
           <div className="space-y-12">
             {state === AppState.IDLE || state === AppState.ERROR ? (
@@ -321,15 +320,13 @@ const App: React.FC = () => {
                         </p>
                      </div>
 
-                     <div className="rounded-[4rem] overflow-hidden shadow-2xl border border-white/5 bg-slate-900 aspect-video relative group">
-                        {mealImage ? <img src={mealImage} className="w-full h-full object-cover" /> : (
-                           <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-slate-600">
-                              <Loader2 className="w-10 h-10 animate-spin" />
-                              <span className="text-[10px] font-black uppercase tracking-widest">Generating Plate Visual...</span>
-                           </div>
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex items-end p-8 md:p-14">
-                           <div className="glass p-8 md:p-10 rounded-[2.5rem] max-w-xl border border-white/10">
+                     <div className="rounded-[4rem] overflow-hidden shadow-2xl border border-white/5 bg-gradient-to-br from-amber-900/20 via-slate-900 to-slate-800 aspect-video relative group">
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-slate-500">
+                           <Utensils className="w-16 h-16 opacity-30" />
+                           <span className="text-xs font-black uppercase tracking-widest">Recipe Ready</span>
+                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex items-end p-8 md:p-14 items-center justify-center">
+                           <div className="">
                               <p className="text-amber-500 font-black text-[10px] uppercase tracking-[0.3em] mb-3">{result.courses[0].type}</p>
                               <p className="text-white text-xl md:text-2xl font-bold leading-tight italic">"{result.courses[0].summary}"</p>
                            </div>
