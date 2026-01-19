@@ -1,0 +1,8 @@
+{
+  "name": "BiteWise: The Smart Kitchen Companion",
+  "description": "An essential everyday tool that turns your ingredients into professional recipes. Uses AI to analyze pantry photos, calculate macros, and narrate cooking steps hands-free.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
